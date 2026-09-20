@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f7f5f0" />
+  <meta name="description" content="轻松剪切、移动和延长舞蹈训练音乐，按 4/4 拍编辑并导出音频。" />
+  <title>YoCut悠剪 · 轻量音频编辑器</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><div><strong>YoCut悠剪</strong><small>耍起嘛耍起</small></div></div>
+      <div class="project-title"><span class="project-dot"></span><input id="projectName" aria-label="项目名称" value="我的歌曲" maxlength="40" /><span class="saved-label">仅保存在当前页面</span></div>
+      <div class="top-actions"><button class="quiet-btn" id="helpBtn" type="button">使用提示</button><select id="exportFormat" class="export-format" aria-label="下载格式"><option value="mp3">MP3</option><option value="wav">WAV</option></select><button class="export-btn" id="exportBtn" type="button"><span aria-hidden="true">↗</span> 合成并下载</button></div>
+    </header>
+
+    <main>
+      <section class="editor-card" aria-label="音频编辑器">
+        <div class="editor-toolbar">
+          <div class="transport">
+            <button class="play-button" id="playBtn" type="button" aria-label="播放"><span id="playIcon">▶</span></button>
+            <button class="icon-button" id="stopBtn" type="button" aria-label="停止">■</button>
+            <div class="time-readout"><strong id="timeReadout">00:00.0</strong><small>播放位置</small></div>
+          </div>
+          <div class="toolbar-divider"></div>
+          <label class="tempo-control"><span>BPM</span><input id="bpmInput" type="number" min="50" max="220" value="120" aria-label="每分钟拍数" /></label>
+          <div class="meter-pill" title="固定为四四拍"><span>节拍</span><b>4 / 4</b></div>
+          <div class="toolbar-spacer"></div>
+          <label class="zoom-control"><span>缩放</span><input type="range" id="zoomInput" min="0.2" max="1.8" step="0.05" value="1" aria-label="时间轴缩放" /><output id="zoomValue">100%</output></label>
+        </div>
+
+        <div class="editbar">
+          <div class="editbar-group"><button id="uploadBtn" class="tool-btn primary-tool" type="button"><span>＋</span> 上传歌曲</button><button id="demoBtn" class="tool-btn" type="button">试听示例</button></div>
+          <div class="editbar-divider"></div>
+          <div class="editbar-group clip-tools"><button class="tool-btn smart-tool" id="alignBtn" type="button" title="估算 BPM 和底鼓位置，再将底鼓吸附到小节线">◉ <span>智能对拍</span></button><button class="tool-btn" id="splitBtn" type="button" title="在播放位置切开选中片段 (Ctrl+E)">✂ <span>切开</span></button><button class="tool-btn" id="duplicateBtn" type="button" title="复制选中片段">⧉ <span>复制</span></button><button class="tool-btn" id="extendBtn" type="button" title="让选中片段循环延长四拍">↗ <span>延长 4 拍</span></button><button class="tool-btn" id="deleteBtn" type="button" title="删除选中片段">⌫ <span>删除</span></button></div>
+          <div class="toolbar-spacer"></div>
+          <button class="undo-btn" id="undoBtn" type="button" title="撤销 (Ctrl+Z)">↶ 撤销</button>
+        </div>
+        <div class="analysis-strip" id="analysisStatus" hidden></div>
+
+        <div class="timeline-frame">
+          <div class="timeline-side-header"><span>音轨</span><small>拖动片段以对齐节拍</small></div>
+          <div class="timeline-scroll" id="timelineScroll"><div class="timeline-content" id="timelineContent"><div class="ruler" id="ruler"></div><div class="tracks-grid" id="tracksGrid"></div><div class="export-selection" id="exportSelection" hidden></div><div class="playhead" id="playhead"><span class="playhead-knob"></span></div></div></div>
+        </div>
+        <div class="timeline-footer"><span id="timelineHint">点击「上传歌曲」开始，或将音频拖进页面</span><span class="selection-controls"><span id="selectionHint" role="status" aria-live="polite">右键划过小节标尺，按 1/4 小节选区导出</span><button id="clearSelectionBtn" type="button" hidden>清除选区</button></span></div>
+      </section>
+
+      <section class="bottom-grid">
+        <div class="drum-card"><div class="card-icon orange">♫</div><div class="drum-copy"><div class="card-topline"><h2>给节奏加一点力</h2><label class="switch"><input type="checkbox" id="drumToggle" aria-label="开启节奏增强" /><span></span></label></div><div class="drum-controls"><label>EQ 增益 <input id="drumLevel" type="range" min="0" max="5" step="0.1" value="2.5" /><output id="drumValue">+2.5 dB</output></label></div></div></div>
+        <button class="guide-card service-card-button" id="contactBtn" type="button" aria-haspopup="dialog" aria-controls="contactDialog"><span class="card-icon purple">✦</span><h2>提取纯伴奏/找客服</h2><span class="service-card-arrow" aria-hidden="true">→</span></button>
+      </section>
+    </main>
+  </div>
+  <input type="file" id="fileInput" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac" multiple hidden />
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <dialog id="helpDialog"><div class="dialog-head"><h2>几步做出训练音乐</h2><button id="closeHelpBtn" aria-label="关闭" type="button">×</button></div><ol><li><b>上传歌曲</b><span>可上传多首，分别放在不同音轨。新歌曲的 BPM 不同时会询问是否切换。拖动片段上下移动音轨；每轨的 M 为静音，S 为独奏，再点一次关闭。</span></li><li><b>对准节拍</b><span>选中歌曲后点击「智能对拍」，会估算 BPM、寻找底鼓并将底鼓放在小节线；也可手动修改 BPM。拖动片段时靠近小节线会吸附。</span></li><li><b>剪辑片段</b><span>拖动片段两端可裁剪；已裁剪的内容可以向外拖动还原。还可在播放位置切开、移动、复制或延长。</span></li><li><b>合成下载</b><span>右键划过标尺可按每拍（1/4 小节）选取所有音轨的导出范围；未选区时从第 1 小节导出至音频结束。选择 MP3 或 WAV 后点击「合成并下载」。</span></li></ol><p class="shortcut-note">快捷键：空格 播放/暂停 · Ctrl+E 切开 · Delete 删除 · Ctrl+Z 撤销 · Ctrl+鼠标滚轮 缩放</p></dialog>
+  <dialog id="tempoDialog" class="tempo-dialog"><h2>检测到新音频节拍</h2><p id="tempoQuestion"></p><div class="tempo-actions"><button id="keepTempoBtn" type="button">保留当前 BPM</button><button id="changeTempoBtn" type="button">更改 BPM</button></div></dialog>
+  <dialog id="contactDialog" class="contact-dialog" aria-labelledby="contactTitle"><div class="dialog-head"><h2 id="contactTitle">提取纯伴奏/找客服</h2><button id="closeContactBtn" aria-label="关闭" type="button">×</button></div><img src="contact-qr.jpg" alt="微信客服二维码，扫码添加好友" /></dialog>
+  <script src="vendor/lame.min.js"></script>
+  <script type="module" src="app.js"></script>
+  <script type="module" src="contact.js"></script>
+</body>
+</html>
