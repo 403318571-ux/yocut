@@ -2,7 +2,7 @@
 
 面向舞蹈训练的轻量浏览器音频编辑器。支持 4/4 拍网格、多音轨片段编辑、智能对拍、节奏 EQ、选区导出 MP3/WAV。
 
-链接转音频支持整段抖音/视频号分享文字或纯链接，默认生成 MP3，按提交顺序加入第一条空音轨。三轨占满后需先用互斥 Solo 分别导出并清空音轨。解析使用 `E:\yocut\tools\yt-dlp.exe`，转码使用 `E:\yocut\tools\ffmpeg\bin\ffmpeg.exe`。若抖音要求登录，可由使用者勾选“使用本机 Chrome 登录状态”；Cookie 只由本机转换程序临时读取，不会保存到项目目录。
+链接转音频支持整段抖音/视频号分享文字或纯链接，默认生成 MP3，按提交顺序加入第一条空音轨。三轨占满后需先用互斥 Solo 分别导出并清空音轨。解析使用 `E:\yocut\tools\yt-dlp.exe`，转码使用 `E:\yocut\tools\ffmpeg\bin\ffmpeg.exe`。若抖音要求新鲜 Cookie，可由使用者开启“使用本机浏览器 Cookie”并选择 Firefox（推荐）、Chrome 或 Edge。Chrome 新版本可能阻止第三方读取 Cookie；Firefox 兼容性更好。Cookie 只由本机转换程序临时读取，不会保存到项目目录。
 
 ## 本地运行
 
