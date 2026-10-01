@@ -1,6 +1,6 @@
 import { analyzeRhythm } from './analysis.js';
 const $ = (id) => document.getElementById(id);
-const els = Object.fromEntries(['fileInput','uploadBtn','demoBtn','playBtn','playIcon','stopBtn','timeReadout','bpmInput','zoomInput','zoomValue','ruler','tracksGrid','timelineContent','timelineScroll','playhead','timelineHint','analysisStatus','alignBtn','splitBtn','duplicateBtn','extendBtn','deleteBtn','undoBtn','drumToggle','drumLevel','drumValue','exportBtn','exportFormat','exportSelection','selectionHint','clearSelectionBtn','tempoDialog','tempoQuestion','keepTempoBtn','changeTempoBtn','projectName','toast','helpBtn','helpDialog','closeHelpBtn'].map(id => [id,$(id)]));
+const els = Object.fromEntries(['fileInput','uploadBtn','linkImportBtn','linkImportDialog','closeLinkImportBtn','linkImportForm','mediaLinkInput','convertLinkBtn','linkImportStatus','tracksFullDialog','closeTracksFullBtn','confirmTracksFullBtn','demoBtn','playBtn','playIcon','stopBtn','timeReadout','bpmInput','zoomInput','zoomValue','ruler','tracksGrid','timelineContent','timelineScroll','playhead','timelineHint','analysisStatus','alignBtn','splitBtn','duplicateBtn','extendBtn','deleteBtn','undoBtn','drumToggle','drumLevel','drumValue','exportBtn','exportFormat','exportSelection','selectionHint','clearSelectionBtn','tempoDialog','tempoQuestion','keepTempoBtn','changeTempoBtn','projectName','toast','helpBtn','helpDialog','closeHelpBtn'].map(id => [id,$(id)]));
 const rail = document.querySelector('.timeline-side-header');
 const palette = [
   { bg:'#fce2d8', border:'#f6bca7', ink:'#b9694b', wave:'#ed977a', dot:'#f19270' },
@@ -31,7 +31,7 @@ const fmt = (s) => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(Math.fl
 function toast(message){ els.toast.textContent=message; els.toast.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>els.toast.classList.remove('show'),2800); }
 function audioContext(){ if(!state.audio) state.audio=new (window.AudioContext||window.webkitAudioContext)(); return state.audio; }
 function allClips(){ return state.tracks.flatMap(t=>t.clips.map(c=>({track:t,clip:c}))); }
-function audibleClips(){const hasSolo=state.tracks.some(track=>track.solo);return state.tracks.filter(track=>!track.muted&&(!hasSolo||track.solo)).flatMap(track=>track.clips.map(clip=>({track,clip})));}
+function audibleClips(){const solo=state.tracks.find(track=>track.solo);return state.tracks.filter(track=>solo?track===solo:!track.muted).flatMap(track=>track.clips.map(clip=>({track,clip})));}
 function endTime(){ return Math.max(0,...allClips().map(({clip})=>clip.start+clip.duration)); }
 function selected(){ return allClips().find(({clip})=>clip.id===state.selected); }
 function saveUndo(){ state.undo.push({ tracks:state.tracks.map(t=>({id:t.id,clips:t.clips.map(c=>({...c}))})),selected:state.selected }); if(state.undo.length>30) state.undo.shift(); updateButtons(); }
@@ -91,7 +91,11 @@ function render(){
       const button=label.querySelector(`.${kind}`);
       button.setAttribute('aria-pressed',String(!!track?.[key]));
       button.onclick=()=>{
-        track[key]=!track[key];
+        if(key==='solo'){
+          const enable=!track.solo;
+          state.tracks.forEach(item=>{item.solo=false;});
+          track.solo=enable;
+        }else track[key]=!track[key];
         const wasPlaying=state.playing;
         if(wasPlaying)stop(false);
         render();
@@ -270,6 +274,34 @@ function askTempoChange(bpm){
     els.tempoDialog.showModal();
   });
 }
+function showTracksFull(){
+  if(!els.tracksFullDialog.open)els.tracksFullDialog.showModal();
+}
+function decodeHeader(value){
+  try{return decodeURIComponent(value||'');}catch{return value||'';}
+}
+async function importLink(event){
+  event.preventDefault();
+  const emptyTrack=state.tracks.find(track=>!track.clips.length);
+  if(!emptyTrack){els.linkImportDialog.close();showTracksFull();return;}
+  const url=els.mediaLinkInput.value.trim();
+  if(!/^https:\/\//i.test(url)){els.linkImportStatus.textContent='请输入完整的 https 链接。';return;}
+  els.convertLinkBtn.disabled=true;
+  els.linkImportStatus.textContent='正在提取并转换为 MP3，请不要关闭页面…';
+  try{
+    const response=await fetch('api/link-audio',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
+    if(!response.ok){const result=await response.json().catch(()=>({}));throw new Error(result.error||'链接转换失败');}
+    const blob=await response.blob();
+    const fileName=decodeHeader(response.headers.get('X-Audio-Filename'))||`链接音频_${Date.now()}.mp3`;
+    const file=new File([blob],fileName,{type:'audio/mpeg'});
+    const before=allClips().length;
+    await addFiles([file]);
+    if(allClips().length>before){els.linkImportDialog.close();els.linkImportForm.reset();els.linkImportStatus.textContent='';}
+  }catch(error){
+    console.error(error);
+    els.linkImportStatus.textContent=location.hostname.endsWith('.github.io')?'线上转换服务尚未配置，请先在本机版使用此功能。':error.message||'链接转换失败，请检查链接后重试。';
+  }finally{els.convertLinkBtn.disabled=false;}
+}
 async function addFiles(files){
   if(!files?.length)return;
   stop();let added=0;
@@ -277,8 +309,8 @@ async function addFiles(files){
     try{
       const hadAudio=allClips().length>0,ctx=audioContext();
       const buffer=await ctx.decodeAudioData(await file.arrayBuffer());
-      const track=state.tracks.find(t=>!t.clips.length)||{id:uid(),name:`音轨 ${state.tracks.length+1}`,clips:[],muted:false,solo:false};
-      if(!state.tracks.includes(track))state.tracks.push(track);
+      const track=state.tracks.find(t=>!t.clips.length);
+      if(!track){showTracksFull();break;}
       const clip={id:uid(),name:file.name.replace(/\.[^.]+$/,''),buffer,start:0,sourceStart:0,duration:buffer.duration,loop:false,loopStart:0,loopEnd:buffer.duration};
       track.clips.push(clip);state.selected=clip.id;added++;render();
       await new Promise(resolve=>setTimeout(resolve,0));
@@ -293,7 +325,7 @@ async function addFiles(files){
   if(added)toast(`已导入 ${added} 个音频文件`);
   els.fileInput.value='';
 }
-function addDemo(){const ctx=audioContext(),duration=beat()*4*8,buffer=ctx.createBuffer(2,Math.ceil(duration*ctx.sampleRate),ctx.sampleRate);for(let ch=0;ch<2;ch++){const data=buffer.getChannelData(ch);for(let i=0;i<data.length;i++){const t=i/ctx.sampleRate,b=t/beat(),pulse=b%1,barBeat=Math.floor(b)%4;const bass=Math.sin(2*Math.PI*55*t)*Math.exp(-pulse*13)*.25;const chord=(Math.sin(2*Math.PI*220*t)+Math.sin(2*Math.PI*277.18*t)+Math.sin(2*Math.PI*329.63*t))*.035*(.55+.45*Math.sin(2*Math.PI*t/(beat()*4)));const clap=(barBeat===1||barBeat===3)&&pulse<.16?(Math.sin(i*127.3)*Math.sin(i*47.1))*Math.exp(-pulse*23)*.12:0;data[i]=bass+chord+clap;}}const track=state.tracks.find(t=>!t.clips.length)||{id:uid(),name:`音轨 ${state.tracks.length+1}`,clips:[],muted:false,solo:false};if(!state.tracks.includes(track))state.tracks.push(track);const clip={id:uid(),name:'八小节律动',buffer,start:0,sourceStart:0,duration,loop:false,loopStart:0,loopEnd:duration};track.clips.push(clip);state.selected=clip.id;render();toast('示例已加入；可试试切开、移动和延长');}
+function addDemo(){const ctx=audioContext(),duration=beat()*4*8,buffer=ctx.createBuffer(2,Math.ceil(duration*ctx.sampleRate),ctx.sampleRate);for(let ch=0;ch<2;ch++){const data=buffer.getChannelData(ch);for(let i=0;i<data.length;i++){const t=i/ctx.sampleRate,b=t/beat(),pulse=b%1,barBeat=Math.floor(b)%4;const bass=Math.sin(2*Math.PI*55*t)*Math.exp(-pulse*13)*.25;const chord=(Math.sin(2*Math.PI*220*t)+Math.sin(2*Math.PI*277.18*t)+Math.sin(2*Math.PI*329.63*t))*.035*(.55+.45*Math.sin(2*Math.PI*t/(beat()*4)));const clap=(barBeat===1||barBeat===3)&&pulse<.16?(Math.sin(i*127.3)*Math.sin(i*47.1))*Math.exp(-pulse*23)*.12:0;data[i]=bass+chord+clap;}}const track=state.tracks.find(t=>!t.clips.length);if(!track){showTracksFull();return;}const clip={id:uid(),name:'八小节律动',buffer,start:0,sourceStart:0,duration,loop:false,loopStart:0,loopEnd:duration};track.clips.push(clip);state.selected=clip.id;render();toast('示例已加入；可试试切开、移动和延长');}
 function encodeWav(buffer){const channels=2,bytes=buffer.length*channels*2,array=new ArrayBuffer(44+bytes),view=new DataView(array);const write=(at,str)=>{for(let i=0;i<str.length;i++)view.setUint8(at+i,str.charCodeAt(i));};write(0,'RIFF');view.setUint32(4,36+bytes,true);write(8,'WAVE');write(12,'fmt ');view.setUint32(16,16,true);view.setUint16(20,1,true);view.setUint16(22,channels,true);view.setUint32(24,buffer.sampleRate,true);view.setUint32(28,buffer.sampleRate*channels*2,true);view.setUint16(32,channels*2,true);view.setUint16(34,16,true);write(36,'data');view.setUint32(40,bytes,true);const left=buffer.getChannelData(0),right=buffer.numberOfChannels>1?buffer.getChannelData(1):left;for(let i=0;i<buffer.length;i++){for(let ch=0;ch<2;ch++){const sample=Math.max(-1,Math.min(1,ch?right[i]:left[i]));view.setInt16(44+(i*2+ch)*2,sample<0?sample*32768:sample*32767,true);}}return new Blob([array],{type:'audio/wav'});}
 async function encodeMp3(buffer){
   if(!window.lamejs?.Mp3Encoder)throw new Error('MP3 编码器未加载');
@@ -356,7 +388,7 @@ window.addEventListener('wheel',event=>{
   els.zoomValue.textContent=`${Math.round(next*100)}%`;
   render();els.timelineScroll.scrollLeft=Math.max(0,anchorTime*pxSecond()-anchorX);
 },{passive:false});
-els.uploadBtn.onclick=()=>els.fileInput.click();els.fileInput.onchange=e=>addFiles(e.target.files);els.demoBtn.onclick=addDemo;els.playBtn.onclick=play;els.stopBtn.onclick=()=>stop();els.splitBtn.onclick=split;els.duplicateBtn.onclick=duplicate;els.extendBtn.onclick=extend;els.deleteBtn.onclick=removeSelected;els.undoBtn.onclick=restoreUndo;els.exportBtn.onclick=exportMix;els.helpBtn.onclick=()=>els.helpDialog.showModal();els.closeHelpBtn.onclick=()=>els.helpDialog.close();els.bpmInput.onchange=()=>{state.bpm=Math.max(50,Math.min(220,Number(els.bpmInput.value)||120));els.bpmInput.value=state.bpm;stop(false);render();toast('节拍网格已更新');};els.zoomInput.oninput=()=>{state.zoom=Number(els.zoomInput.value);els.zoomValue.textContent=`${Math.round(state.zoom*100)}%`;render();};els.drumLevel.oninput=updateEq;els.drumToggle.onchange=()=>{updateEq();toast(els.drumToggle.checked?'低频 EQ 已开启':'低频 EQ 已关闭');};els.timelineContent.addEventListener('pointerdown',e=>{if(e.target.closest('.clip'))return;const rect=els.timelineContent.getBoundingClientRect();setPlayhead(snap((e.clientX-rect.left)/pxSecond()),true);});window.addEventListener('keydown',e=>{if(e.target instanceof HTMLInputElement||e.target instanceof HTMLTextAreaElement||els.helpDialog.open)return;if(e.code==='Space'){e.preventDefault();play();}else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='e'){e.preventDefault();split();}else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();restoreUndo();}else if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();removeSelected();}});window.addEventListener('dragover',e=>{if(e.dataTransfer?.types.includes('Files'))e.preventDefault();});window.addEventListener('drop',e=>{if(e.dataTransfer?.files.length){e.preventDefault();addFiles(e.dataTransfer.files);}});window.addEventListener('resize',()=>render());render();
+els.uploadBtn.onclick=()=>els.fileInput.click();els.fileInput.onchange=e=>addFiles(e.target.files);els.linkImportBtn.onclick=()=>{if(state.tracks.every(track=>track.clips.length)){showTracksFull();return;}els.linkImportStatus.textContent='';els.linkImportDialog.showModal();};els.closeLinkImportBtn.onclick=()=>els.linkImportDialog.close();els.linkImportForm.onsubmit=importLink;els.closeTracksFullBtn.onclick=els.confirmTracksFullBtn.onclick=()=>els.tracksFullDialog.close();els.demoBtn.onclick=addDemo;els.playBtn.onclick=play;els.stopBtn.onclick=()=>stop();els.splitBtn.onclick=split;els.duplicateBtn.onclick=duplicate;els.extendBtn.onclick=extend;els.deleteBtn.onclick=removeSelected;els.undoBtn.onclick=restoreUndo;els.exportBtn.onclick=exportMix;els.helpBtn.onclick=()=>els.helpDialog.showModal();els.closeHelpBtn.onclick=()=>els.helpDialog.close();els.bpmInput.onchange=()=>{state.bpm=Math.max(50,Math.min(220,Number(els.bpmInput.value)||120));els.bpmInput.value=state.bpm;stop(false);render();toast('节拍网格已更新');};els.zoomInput.oninput=()=>{state.zoom=Number(els.zoomInput.value);els.zoomValue.textContent=`${Math.round(state.zoom*100)}%`;render();};els.drumLevel.oninput=updateEq;els.drumToggle.onchange=()=>{updateEq();toast(els.drumToggle.checked?'低频 EQ 已开启':'低频 EQ 已关闭');};els.timelineContent.addEventListener('pointerdown',e=>{if(e.target.closest('.clip'))return;const rect=els.timelineContent.getBoundingClientRect();setPlayhead(snap((e.clientX-rect.left)/pxSecond()),true);});window.addEventListener('keydown',e=>{if(e.target instanceof HTMLInputElement||e.target instanceof HTMLTextAreaElement||els.helpDialog.open||els.linkImportDialog.open||els.tracksFullDialog.open)return;if(e.code==='Space'){e.preventDefault();play();}else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='e'){e.preventDefault();split();}else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();restoreUndo();}else if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();removeSelected();}});window.addEventListener('dragover',e=>{if(e.dataTransfer?.types.includes('Files'))e.preventDefault();});window.addEventListener('drop',e=>{if(e.dataTransfer?.files.length){e.preventDefault();addFiles(e.dataTransfer.files);}});window.addEventListener('resize',()=>render());render();
 els.alignBtn.onclick=()=>alignSelected();
 
 // Expose a few existing editor actions to browsers that support WebMCP.
