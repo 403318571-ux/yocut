@@ -33,7 +33,7 @@
         </div>
 
         <div class="editbar">
-          <div class="editbar-group"><button id="uploadBtn" class="tool-btn primary-tool" type="button"><span>＋</span> 上传歌曲</button><button id="linkImportBtn" class="tool-btn link-import-btn" type="button">↗ 链接转音频</button><button id="demoBtn" class="tool-btn" type="button">试听示例</button></div>
+          <div class="editbar-group"><button id="uploadBtn" class="tool-btn primary-tool" type="button"><span>＋</span> 上传歌曲</button><button id="demoBtn" class="tool-btn" type="button">试听示例</button></div>
           <div class="editbar-divider"></div>
           <div class="editbar-group clip-tools"><button class="tool-btn smart-tool" id="alignBtn" type="button" title="估算 BPM 和底鼓位置，再将底鼓吸附到小节线">◉ <span>智能对拍</span></button><button class="tool-btn" id="splitBtn" type="button" title="在播放位置切开选中片段 (Ctrl+E)">✂ <span>切开</span></button><button class="tool-btn" id="duplicateBtn" type="button" title="复制选中片段">⧉ <span>复制</span></button><button class="tool-btn" id="extendBtn" type="button" title="让选中片段循环延长四拍">↗ <span>延长 4 拍</span></button><button class="tool-btn" id="deleteBtn" type="button" title="删除选中片段">⌫ <span>删除</span></button></div>
           <div class="toolbar-spacer"></div>
@@ -50,6 +50,7 @@
 
       <section class="bottom-grid">
         <div class="drum-card"><div class="card-icon orange">♫</div><div class="drum-copy"><div class="card-topline"><h2>给节奏加一点力</h2><label class="switch"><input type="checkbox" id="drumToggle" aria-label="开启节奏增强" /><span></span></label></div><div class="drum-controls"><label>EQ 增益 <input id="drumLevel" type="range" min="0" max="5" step="0.1" value="2.5" /><output id="drumValue">+2.5 dB</output></label></div></div></div>
+        <button class="guide-card link-card-button" id="linkImportBtn" type="button" aria-haspopup="dialog" aria-controls="linkImportDialog"><span class="card-icon blue">↗</span><h2>链接转音频</h2><span class="service-card-arrow" aria-hidden="true">→</span></button>
         <button class="guide-card service-card-button" id="contactBtn" type="button" aria-haspopup="dialog" aria-controls="contactDialog"><span class="card-icon purple">✦</span><h2>提取纯伴奏/找客服</h2><span class="service-card-arrow" aria-hidden="true">→</span></button>
       </section>
     </main>
@@ -58,7 +59,7 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <dialog id="helpDialog"><div class="dialog-head"><h2>几步做出训练音乐</h2><button id="closeHelpBtn" aria-label="关闭" type="button">×</button></div><ol><li><b>加入歌曲</b><span>可上传本地音频，或将抖音、视频号链接转换为 MP3。音频按加入顺序进入第一条空音轨。新歌曲的 BPM 不同时会询问是否切换。</span></li><li><b>对准节拍</b><span>选中歌曲后点击「智能对拍」，会估算 BPM、寻找底鼓并将底鼓放在小节线；也可手动修改 BPM。拖动片段时靠近小节线会吸附。</span></li><li><b>剪辑和独奏</b><span>拖动片段两端可裁剪或还原。每轨 M 为静音，S 为独奏；Solo 同时只保留一轨，最新点击的轨道生效。</span></li><li><b>合成下载</b><span>右键划过标尺可按每拍选取导出范围。三轨占满时，依次点击各轨 S 键并分别导出；默认格式为 MP3。</span></li></ol><p class="shortcut-note">快捷键：空格 播放/暂停 · Ctrl+E 切开 · Delete 删除 · Ctrl+Z 撤销 · Ctrl+鼠标滚轮 缩放</p></dialog>
   <dialog id="tempoDialog" class="tempo-dialog"><h2>检测到新音频节拍</h2><p id="tempoQuestion"></p><div class="tempo-actions"><button id="keepTempoBtn" type="button">保留当前 BPM</button><button id="changeTempoBtn" type="button">更改 BPM</button></div></dialog>
-  <dialog id="linkImportDialog" class="link-import-dialog" aria-labelledby="linkImportTitle"><div class="dialog-head"><h2 id="linkImportTitle">链接转音频</h2><button id="closeLinkImportBtn" aria-label="关闭" type="button">×</button></div><p>粘贴抖音或视频号分享链接，默认转换为 MP3 并加入第一个空音轨。</p><form id="linkImportForm"><label for="mediaLinkInput">视频链接</label><input id="mediaLinkInput" type="url" inputmode="url" placeholder="https://v.douyin.com/…" required /><button id="convertLinkBtn" type="submit">转换并加入音轨</button><p id="linkImportStatus" class="link-import-status" role="status" aria-live="polite"></p></form></dialog>
+  <dialog id="linkImportDialog" class="link-import-dialog" aria-labelledby="linkImportTitle"><div class="dialog-head"><h2 id="linkImportTitle">链接转音频</h2><button id="closeLinkImportBtn" aria-label="关闭" type="button">×</button></div><p>粘贴整段抖音或视频号分享文字，也可以只粘贴链接。转换完成后会以 MP3 加入第一条空音轨。</p><form id="linkImportForm" autocomplete="off"><label for="mediaLinkInput">分享链接或分享文字</label><textarea id="mediaLinkInput" inputmode="url" rows="3" placeholder="复制分享内容并粘贴到这里，例如：https://v.douyin.com/…" required></textarea><div class="cookie-option"><input id="useBrowserCookies" type="checkbox" autocomplete="off" /><label for="useBrowserCookies"><b>使用本机 Chrome 登录状态</b><small>遇到“需要登录”时再开启，仅由本机转换程序临时读取</small></label></div><button id="convertLinkBtn" type="submit">转换并加入音轨</button><p id="linkImportStatus" class="link-import-status" role="status" aria-live="polite"></p></form></dialog>
   <dialog id="tracksFullDialog" class="tracks-full-dialog" aria-labelledby="tracksFullTitle"><div class="dialog-head"><h2 id="tracksFullTitle">三条音轨已占用</h2><button id="closeTracksFullBtn" aria-label="关闭" type="button">×</button></div><p>请依次点击每条音轨的 S（独奏）键，再点击“合成并下载”分别导出。删除或移走一条音轨中的音频后，才能继续加入新链接。</p><button id="confirmTracksFullBtn" type="button">知道了</button></dialog>
   <dialog id="contactDialog" class="contact-dialog" aria-labelledby="contactTitle"><div class="dialog-head"><h2 id="contactTitle">提取纯伴奏/找客服</h2><button id="closeContactBtn" aria-label="关闭" type="button">×</button></div><img src="contact-qr.jpg" alt="微信客服二维码，扫码添加好友" /></dialog>
   <script src="vendor/lame.min.js"></script>
@@ -66,3 +67,4 @@
   <script type="module" src="contact.js"></script>
 </body>
 </html>
+

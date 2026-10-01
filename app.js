@@ -1,6 +1,6 @@
 import { analyzeRhythm } from './analysis.js';
 const $ = (id) => document.getElementById(id);
-const els = Object.fromEntries(['fileInput','uploadBtn','linkImportBtn','linkImportDialog','closeLinkImportBtn','linkImportForm','mediaLinkInput','convertLinkBtn','linkImportStatus','tracksFullDialog','closeTracksFullBtn','confirmTracksFullBtn','demoBtn','playBtn','playIcon','stopBtn','timeReadout','bpmInput','zoomInput','zoomValue','ruler','tracksGrid','timelineContent','timelineScroll','playhead','timelineHint','analysisStatus','alignBtn','splitBtn','duplicateBtn','extendBtn','deleteBtn','undoBtn','drumToggle','drumLevel','drumValue','exportBtn','exportFormat','exportSelection','selectionHint','clearSelectionBtn','tempoDialog','tempoQuestion','keepTempoBtn','changeTempoBtn','projectName','toast','helpBtn','helpDialog','closeHelpBtn'].map(id => [id,$(id)]));
+const els = Object.fromEntries(['fileInput','uploadBtn','linkImportBtn','linkImportDialog','closeLinkImportBtn','linkImportForm','mediaLinkInput','useBrowserCookies','convertLinkBtn','linkImportStatus','tracksFullDialog','closeTracksFullBtn','confirmTracksFullBtn','demoBtn','playBtn','playIcon','stopBtn','timeReadout','bpmInput','zoomInput','zoomValue','ruler','tracksGrid','timelineContent','timelineScroll','playhead','timelineHint','analysisStatus','alignBtn','splitBtn','duplicateBtn','extendBtn','deleteBtn','undoBtn','drumToggle','drumLevel','drumValue','exportBtn','exportFormat','exportSelection','selectionHint','clearSelectionBtn','tempoDialog','tempoQuestion','keepTempoBtn','changeTempoBtn','projectName','toast','helpBtn','helpDialog','closeHelpBtn'].map(id => [id,$(id)]));
 const rail = document.querySelector('.timeline-side-header');
 const palette = [
   { bg:'#fce2d8', border:'#f6bca7', ink:'#b9694b', wave:'#ed977a', dot:'#f19270' },
@@ -284,12 +284,13 @@ async function importLink(event){
   event.preventDefault();
   const emptyTrack=state.tracks.find(track=>!track.clips.length);
   if(!emptyTrack){els.linkImportDialog.close();showTracksFull();return;}
-  const url=els.mediaLinkInput.value.trim();
-  if(!/^https:\/\//i.test(url)){els.linkImportStatus.textContent='请输入完整的 https 链接。';return;}
+  const shareText=els.mediaLinkInput.value.trim();
+  const matchedUrl=shareText.match(/https:\/\/[^\s<>\"'，。！？]+/i)?.[0]?.replace(/[)）\]】,，。！？]+$/,'');
+  if(!matchedUrl){els.linkImportStatus.textContent='没有找到有效链接，请粘贴完整的分享文字或 https 链接。';return;}
   els.convertLinkBtn.disabled=true;
   els.linkImportStatus.textContent='正在提取并转换为 MP3，请不要关闭页面…';
   try{
-    const response=await fetch('api/link-audio',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
+    const response=await fetch('api/link-audio',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:matchedUrl,useBrowserCookies:els.useBrowserCookies.checked})});
     if(!response.ok){const result=await response.json().catch(()=>({}));throw new Error(result.error||'链接转换失败');}
     const blob=await response.blob();
     const fileName=decodeHeader(response.headers.get('X-Audio-Filename'))||`链接音频_${Date.now()}.mp3`;
@@ -398,3 +399,4 @@ if(document.modelContext?.registerTool){
   register({name:'set_editor_tempo',title:'设置节拍速度',description:'设置编辑器的 BPM，并更新可见的四四拍时间网格。',inputSchema:{type:'object',properties:{bpm:{type:'integer',minimum:50,maximum:220}},required:['bpm'],additionalProperties:false},annotations:{readOnlyHint:false},execute(input){if(!Number.isInteger(input?.bpm)||input.bpm<50||input.bpm>220)throw new Error('BPM 必须为 50 到 220 的整数');state.bpm=input.bpm;els.bpmInput.value=input.bpm;stop(false);render();return {bpm:state.bpm};}});
   register({name:'split_selected_clip',title:'切开所选片段',description:'在当前播放位置切开已选中的音频片段。',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:false},execute(){const pair=selected();if(!pair||state.playhead<=pair.clip.start+.03||state.playhead>=pair.clip.start+pair.clip.duration-.03)throw new Error('请先选中片段，并把播放位置放在片段内部');split();return {clipCount:allClips().length,playheadSeconds:state.playhead};}});
 }
+
